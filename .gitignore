@@ -1,0 +1,26 @@
+# Whitelist: the workspace also holds third-party clones, game data exports and
+# local scratch files that must never be published.
+/*
+!/.gitignore
+!/.github/
+!/README.md
+!/CHANGELOG.md
+!/LICENSE
+!/CONVERSION.md
+!/NOTES.md
+!/LMRInvestigations.lua
+!/LMRI_LegalityTest.lua
+!/LMRI_Logic.lua
+!/LMRI_SpOfferProbe.lua
+
+!/data/
+/data/*
+!/data/LMRI_Grounding_Data.lua
+
+!/tools/
+/tools/*
+!/tools/extract_legality.py
+!/tools/package.ps1
+!/tools/dev/
+__pycache__/
+dist/

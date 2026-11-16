@@ -1,0 +1,62 @@
+# Publishing a GitHub release tagged vX.Y.Z builds both zips, attaches them to the
+# release and adds them as new versions of the existing Nexus Mods files.
+# Setup (repo Settings > Secrets and variables > Actions):
+#   secret   NEXUSMODS_API_KEY    https://www.nexusmods.com/settings/api-keys
+#   variable NEXUS_MAIN_FILE_ID   file ID of the main file (Files tab > "Advanced")
+#   variable NEXUS_SUITE_FILE_ID  file ID of the optional suite file (skip suite upload while unset)
+#   variable NEXUS_MOD_ID         mod ID shown under "Advanced" (enables the changelog; optional)
+name: release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build zips
+        id: build
+        shell: pwsh
+        run: |
+          $v = "${{ github.event.release.tag_name }}".TrimStart("v")
+          ./tools/package.ps1 -Version $v
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Attach zips to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.zip --clobber
+
+      - name: Upload mod to Nexus Mods
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.11
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUS_MAIN_FILE_ID }}
+          filename: dist/LMRInvestigations-${{ steps.build.outputs.version }}.zip
+          version: ${{ steps.build.outputs.version }}
+          display_name: LMRInvestigations
+          description: REFramework script. Requires REFramework.
+          category: main
+          archive_existing_version: true
+          update_mod_version: true
+          mod_id: ${{ vars.NEXUS_MOD_ID }}
+          changelog: ${{ vars.NEXUS_MOD_ID && github.event.release.body || '' }}
+
+      - name: Upload legality suite to Nexus Mods
+        if: ${{ vars.NEXUS_SUITE_FILE_ID != '' }}
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.11
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUS_SUITE_FILE_ID }}
+          filename: dist/LMRInvestigations-LegalitySuite-${{ steps.build.outputs.version }}.zip
+          version: ${{ steps.build.outputs.version }}
+          display_name: LMRInvestigations - Legality Suite
+          description: Optional test suite that checks generated investigations against vanilla. Set snapshot_vanilla to true in LMRInvestigations.json.
+          category: optional
+          archive_existing_version: true
